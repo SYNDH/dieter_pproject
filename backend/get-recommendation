@@ -6,11 +6,9 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 const port = 3001;
 
-// --- 1. 보안 및 미들웨어 설정 ---
 app.use(cors({ origin: 'https://dieter01.netlify.app' }));
 app.use(express.json({ limit: '10mb' }));
 
-// --- 2. Gemini API 설정 ---
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 if (!GEMINI_API_KEY) {
   console.error('GEMINI_API_KEY is not set. Please check your .env file.');
@@ -19,13 +17,11 @@ if (!GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-// 기존에 사용하던 모델 버전 유지
 const model = genAI.getGenerativeModel({ 
   model: 'gemini-2.5-flash-preview-09-2025' 
 });
 
 // --- 3. [상수] 성별 권장 섭취량 데이터 (보건복지부 기준) ---
-// 백엔드의 핵심 역할: 사용자의 성별에 맞는 기준표를 꺼내주는 것
 const RECOMMENDED_INTAKE = {
   male: {
     calories: 2500,
@@ -43,7 +39,6 @@ const RECOMMENDED_INTAKE = {
   }
 };
 
-// --- 4. [기존 기능] 음식 사진 분석 API (/analyze-image) ---
 app.post('/analyze-image', async (req, res) => {
   try {
     const { imageBase64, mimeType } = req.body;
@@ -71,7 +66,7 @@ app.post('/analyze-image', async (req, res) => {
     let jsonData;
     try {
       let jsonText = text;
-      // 마크다운 코드블록 제거 및 JSON 파싱
+     
       const markdownMatch = text.match(/```json([\s\S]*)```/);
       if (markdownMatch && markdownMatch[1]) {
         jsonText = markdownMatch[1];
@@ -95,13 +90,13 @@ app.post('/analyze-image', async (req, res) => {
   }
 });
 
-// --- 5. [신규 기능] 식단 추천 API (/get-recommendation) ---
+
 app.post('/get-recommendation', async (req, res) => {
   try {
-    // 프론트에서 { gender: "male", currentIntake: {...} }를 받음
+   
     const { gender, currentIntake } = req.body;
 
-    // 유효성 검사
+   
     if (!gender || !['male', 'female'].includes(gender)) {
       return res.status(400).json({ error: 'Invalid gender' });
     }
@@ -109,13 +104,13 @@ app.post('/get-recommendation', async (req, res) => {
       return res.status(400).json({ error: 'Missing currentIntake data' });
     }
 
-    // ✅ 핵심: 성별에 따라 올바른 기준표(Standard) 선택
+    // 핵심: 성별에 따라 올바른 기준표(Standard) 선택
     const standard = RECOMMENDED_INTAKE[gender];
 
     console.log(`[추천 요청] 성별: ${gender}`);
     console.log(`[기준 데이터]:`, standard);
 
-    // ✅ AI 프롬프트: "이게 기준이고, 이게 먹은 거야. 네가 분석해서 추천해줘."
+    // AI 프롬프트: "이게 기준이고, 이게 먹은 거야. 네가 분석해서 추천해줘."
     const prompt = `
       당신은 전문 영양사입니다. 
       아래 제공된 [사용자 권장 섭취량]과 [오늘 실제 섭취량]을 비교 분석하여,
@@ -150,7 +145,6 @@ app.post('/get-recommendation', async (req, res) => {
     const response = await result.response;
     let text = response.text();
 
-    // 응답 정제 (Markdown 제거)
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const recommendation = JSON.parse(text);
     
